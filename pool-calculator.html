@@ -422,7 +422,7 @@ function setConc(chem, val, btn) {
 
 function logReading() {
   const entry = {
-    date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' ' + new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
     ts: Date.now(),
     fc: v('fc'), cc: v('cc'), ph: v('ph'), ta: v('ta'),
     ch: v('ch'), salt: v('salt'), cya: v('cya'), temp: v('temp')
