@@ -64,6 +64,8 @@
   .log-btn:hover { background: #185FA5; }
   .history-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; padding: 7px 0; border-bottom: 1px solid #eee; }
   .history-date { color: #888; min-width: 100px; font-size: 12px; }
+  .del-btn { margin-left: auto; background: none; border: none; cursor: pointer; color: #ccc; font-size: 15px; padding: 2px 4px; border-radius: 4px; line-height: 1; transition: color 0.12s; flex-shrink: 0; }
+  .del-btn:hover { color: #A32D2D; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   th, td { padding: 8px 0; border-bottom: 1px solid #eee; }
   th { text-align: left; color: #888; font-weight: 500; }
@@ -192,12 +194,8 @@
           <button class="conc-btn" onclick="setConc('bleach', 12.5, this)">12.5%</button>
         </div>
       </div>
-      <div style="margin-bottom: 14px;">
-        <label style="font-size: 13px; color: #666; display:block; margin-bottom:6px;">Granular shock (calcium hypochlorite)</label>
-        <div class="conc-selector" id="shock-conc">
-          <button class="conc-btn sel" onclick="setConc('shock', 65, this)">65%</button>
-          <button class="conc-btn" onclick="setConc('shock', 73, this)">73%</button>
-        </div>
+      <div style="margin-bottom: 14px; padding: 10px 12px; background: #f8f9fb; border-radius: 8px; border-left: 3px solid #378ADD;">
+        <p style="font-size: 13px; color: #555; margin: 0;"><i class="ti ti-info-circle" aria-hidden="true" style="vertical-align:-2px; margin-right:4px;"></i>Shock (SLAM) doses are calculated using liquid chlorine at the concentration selected above.</p>
       </div>
       <div>
         <label style="font-size: 13px; color: #666; display:block; margin-bottom:6px;">Muriatic acid</label>
@@ -346,7 +344,7 @@ function updateDosing(fc, cc, ph, ta, ch, salt, cya, temp) {
   if (cc !== null && cc > 0.5) {
     const shockLvl = cya ? (cya * 0.4) : 10;
     const oz = bleachOz(Math.max(0, shockLvl - (fc || 0)));
-    items.push({ name: 'SLAM shock — CC too high', amount: `${oz.toFixed(0)} fl oz bleach`, note: `Raise FC to ${shockLvl.toFixed(0)} ppm (CYA×0.4) and hold until CC < 0.5 ppm and pool is clear`, cls: 'dose-warn' });
+    items.push({ name: 'SLAM shock — CC too high', amount: `${oz.toFixed(0)} fl oz (${(oz/128).toFixed(2)} gal) liquid chlorine`, note: `${concs.bleach}% bleach to raise FC to ${shockLvl.toFixed(0)} ppm (CYA×0.4). Hold there until CC < 0.5 ppm and pool is clear.`, cls: 'dose-warn' });
   }
 
   if (ph !== null) {
@@ -437,10 +435,22 @@ function logReading() {
   renderHistory();
 }
 
+function deleteEntry(i) {
+  history.splice(i, 1);
+  localStorage.setItem('poolHistory_19800', JSON.stringify(history));
+  if (history.length > 0) {
+    document.getElementById('last-logged').textContent = 'Last logged: ' + history[0].date;
+  } else {
+    document.getElementById('last-logged').textContent = 'No readings logged';
+  }
+  renderHistory();
+}
+
 function clearHistory() {
   if (!confirm('Clear all logged readings? This cannot be undone.')) return;
   history = [];
   localStorage.removeItem('poolHistory_19800');
+  document.getElementById('last-logged').textContent = 'No readings logged';
   renderHistory();
 }
 
@@ -530,7 +540,7 @@ function renderHistory() {
     }
   });
 
-  document.getElementById('history-list').innerHTML = history.slice(0, 15).map(e => `
+  document.getElementById('history-list').innerHTML = history.slice(0, 15).map((e, i) => `
     <div class="history-row">
       <span class="history-date">${e.date}</span>
       ${e.fc   !== null ? `<span><b>FC</b> ${e.fc}</span>` : ''}
@@ -540,6 +550,7 @@ function renderHistory() {
       ${e.salt !== null ? `<span><b>Salt</b> ${e.salt}</span>` : ''}
       ${e.cya  !== null ? `<span><b>CYA</b> ${e.cya}</span>` : ''}
       ${e.temp !== null ? `<span><b>Temp</b> ${e.temp}°F</span>` : ''}
+      <button class="del-btn" onclick="deleteEntry(${i})" title="Delete this entry" aria-label="Delete entry from ${e.date}"><i class="ti ti-x" aria-hidden="true"></i></button>
     </div>
   `).join('');
 }
