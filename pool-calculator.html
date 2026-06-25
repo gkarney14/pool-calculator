@@ -412,8 +412,9 @@ function updateDosing(fc, cc, ph, ta, ch, salt, cya, temp) {
 
   if (cya !== null) {
     if (cya < 60) {
-      const oz = ((70 - cya) * GALLONS / 1000000 * 8.34 * 100).toFixed(0);
-      items.push({ name: 'Add stabilizer / CYA', amount: `${oz} oz (${(oz/16).toFixed(1)} lbs)`, note: `Raise CYA ${cya} → 70 ${u}. Dissolve in warm water first. Takes 1–2 weeks to fully register.`, cls: 'dose-warn' });
+      const lbs = ((70 - cya) * GALLONS / 1000000 * 8.34).toFixed(2);
+      const oz = (lbs * 16).toFixed(0);
+      items.push({ name: 'Add stabilizer / CYA', amount: `${lbs} lbs (${oz} oz)`, note: `Raise CYA ${cya} → 70 ${u}. Dissolve in warm water first. Takes 1–2 weeks to fully register.`, cls: 'dose-warn' });
     } else if (cya > 90) {
       items.push({ name: 'CYA — high', amount: 'Partial drain/refill', note: `CYA ${cya} ${u} reduces chlorine effectiveness. Dilute with fresh water; no chemical fix.`, cls: 'dose-warn' });
     } else {
