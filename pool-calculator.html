@@ -48,14 +48,20 @@
   .status-ok { background: #EAF3DE; color: #3B6D11; }
   .status-warn { background: #FAEEDA; color: #854F0B; }
   .status-danger { background: #FCEBEB; color: #A32D2D; }
-  .dose-card { border-left: 3px solid #378ADD; padding: 12px 16px; background: #f8f9fb; border-radius: 0 10px 10px 0; margin-bottom: 10px; }
+  .dose-card { border-left: 3px solid #378ADD; background: #f8f9fb; border-radius: 0 10px 10px 0; margin-bottom: 10px; display: grid; grid-template-columns: 130px 1fr; }
+  .dose-reading { padding: 12px 14px; border-right: 1px solid rgba(0,0,0,0.07); display: flex; flex-direction: column; justify-content: center; }
+  .dose-reading-label { font-size: 11px; color: #aaa; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+  .dose-reading-value { font-size: 22px; font-weight: 500; color: #444; line-height: 1; }
+  .dose-reading-unit { font-size: 12px; color: #aaa; margin-top: 2px; }
+  .dose-body { padding: 12px 16px; }
   .dose-name { font-weight: 500; font-size: 14px; margin-bottom: 2px; }
-  .dose-amount { font-size: 20px; font-weight: 500; color: #185FA5; margin: 2px 0; }
+  .dose-amount { font-size: 18px; font-weight: 500; color: #185FA5; margin: 2px 0; }
   .dose-note { font-size: 12px; color: #888; margin-top: 4px; }
   .dose-ok { border-left-color: #3B6D11; }
   .dose-ok .dose-amount { color: #3B6D11; }
   .dose-warn { border-left-color: #BA7517; }
   .dose-warn .dose-amount { color: #854F0B; }
+  @media (max-width: 480px) { .dose-card { grid-template-columns: 1fr; } .dose-reading { border-right: none; border-bottom: 1px solid rgba(0,0,0,0.07); flex-direction: row; align-items: baseline; gap: 6px; } }
   .conc-selector { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
   .conc-btn { padding: 5px 12px; font-size: 12px; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; background: #f5f5f3; color: #888; transition: all 0.12s; }
   .conc-btn:hover { border-color: #378ADD; color: #378ADD; }
@@ -350,64 +356,64 @@ function updateDosing(fc, cc, ph, ta, ch, salt, cya, temp) {
   if (fc !== null) {
     if (fc < 2) {
       const oz = bleachOz(3 - fc);
-      items.push({ name: 'Add liquid chlorine', amount: `${oz.toFixed(1)} fl oz (${(oz/128).toFixed(2)} gal)`, note: `${concs.bleach}% bleach to raise FC ${fc} → 3 ${u}`, cls: 'dose-warn' });
+      items.push({ name: 'Add liquid chlorine', amount: `${oz.toFixed(1)} fl oz (${(oz/128).toFixed(2)} gal)`, note: `${concs.bleach}% NaOCl to raise FC ${fc} → 3 ${u}`, reading: fc, readingUnit: u, param: 'FC', cls: 'dose-warn' });
     } else if (fc > 5) {
-      items.push({ name: 'Free Chlorine — high', amount: 'Reduce SWG output', note: `FC at ${fc} ${u}. Dial back the cell % or let it drop naturally.`, cls: 'dose-warn' });
+      items.push({ name: 'Free Chlorine — high', amount: 'Reduce SWG output', note: `Dial back the cell % or let it drop naturally.`, reading: fc, readingUnit: u, param: 'FC', cls: 'dose-warn' });
     } else {
-      items.push({ name: 'Free Chlorine', amount: 'No action needed', note: `${fc} ${u} is within target (2–4 ${u})`, cls: 'dose-ok' });
+      items.push({ name: 'Free Chlorine', amount: 'No action needed', note: `Target 2–4 ${u}`, reading: fc, readingUnit: u, param: 'FC', cls: 'dose-ok' });
     }
   }
 
   if (cc !== null && cc > 0.5) {
     const shockLvl = cya ? (cya * 0.4) : 10;
     const oz = bleachOz(Math.max(0, shockLvl - (fc || 0)));
-    items.push({ name: 'SLAM shock — CC too high', amount: `${oz.toFixed(0)} fl oz (${(oz/128).toFixed(2)} gal) liquid chlorine`, note: `${concs.bleach}% bleach to raise FC to ${shockLvl.toFixed(0)} ${u} (CYA×0.4). Hold there until CC < 0.5 ${u} and pool is clear.`, cls: 'dose-warn' });
+    items.push({ name: 'SLAM shock — CC too high', amount: `${oz.toFixed(0)} fl oz (${(oz/128).toFixed(2)} gal) NaOCl`, note: `${concs.bleach}% bleach to raise FC to ${shockLvl.toFixed(0)} ${u} (CYA×0.4). Hold until CC < 0.5 ${u} and pool is clear.`, reading: cc, readingUnit: u, param: 'CC', cls: 'dose-warn' });
   }
 
   if (ph !== null) {
     if (ph > 7.6) {
       const taForCalc = ta || 100;
       const oz = ((ph - 7.4) * GALLONS * (taForCalc / 100) * 0.004 * (31.45 / concs.acid)).toFixed(1);
-      items.push({ name: `Add muriatic acid (${concs.acid}%)`, amount: `${oz} fl oz (${(oz / 128).toFixed(2)} gal)`, note: `Lower pH ${ph} → 7.4. Based on TA ${taForCalc} ppm. Pour near return jet with pump running.`, cls: 'dose-warn' });
+      items.push({ name: `Muriatic acid (${concs.acid}%)`, amount: `${oz} fl oz (${(oz / 128).toFixed(2)} gal)`, note: `Lower pH ${ph} → 7.4. Based on TA ${taForCalc} ${u}. Pour near return jet with pump running.`, reading: ph, readingUnit: '', param: 'pH', cls: 'dose-warn' });
     } else if (ph < 7.2) {
       const lbs = ((7.4 - ph) * GALLONS * 0.000219).toFixed(2);
-      items.push({ name: 'Add soda ash (pH+)', amount: `${lbs} lbs`, note: `Raise pH ${ph} → 7.4. Add in front of a return jet with pump running.`, cls: 'dose-warn' });
+      items.push({ name: 'Add soda ash (pH+)', amount: `${lbs} lbs`, note: `Raise pH ${ph} → 7.4. Add in front of a return jet with pump running.`, reading: ph, readingUnit: '', param: 'pH', cls: 'dose-warn' });
     } else {
-      items.push({ name: 'pH', amount: 'No action needed', note: `${ph} is within target (7.2–7.6)`, cls: 'dose-ok' });
+      items.push({ name: 'pH', amount: 'No action needed', note: `Target 7.2–7.6`, reading: ph, readingUnit: '', param: 'pH', cls: 'dose-ok' });
     }
   }
 
   if (ta !== null) {
     if (ta < 80) {
       const lbs = ((80 - ta) * GALLONS * 0.000015).toFixed(1);
-      items.push({ name: 'Add baking soda (TA+)', amount: `${lbs} lbs`, note: `Raise TA ${ta} → 80 ${u}. Add in increments, retest each time.`, cls: 'dose-warn' });
+      items.push({ name: 'Add baking soda (TA+)', amount: `${lbs} lbs`, note: `Raise TA ${ta} → 80 ${u}. Add in increments, retest each time.`, reading: ta, readingUnit: u, param: 'TA', cls: 'dose-warn' });
     } else if (ta > 120) {
       const oz = ((ta - 100) * GALLONS * 0.0001 * (31.45 / concs.acid)).toFixed(1);
-      items.push({ name: `Muriatic acid ${concs.acid}% (lower TA)`, amount: `${oz} fl oz (${(oz / 128).toFixed(2)} gal)`, note: `Lower TA ${ta} → 100 ${u}. Add in 2–3 doses with aeration between each to degas CO₂.`, cls: 'dose-warn' });
+      items.push({ name: `Muriatic acid ${concs.acid}% (lower TA)`, amount: `${oz} fl oz (${(oz / 128).toFixed(2)} gal)`, note: `Lower TA ${ta} → 100 ${u}. Add in 2–3 doses with aeration between each to degas CO₂.`, reading: ta, readingUnit: u, param: 'TA', cls: 'dose-warn' });
     } else {
-      items.push({ name: 'Total Alkalinity', amount: 'No action needed', note: `${ta} ${u} is within target (80–120 ${u})`, cls: 'dose-ok' });
+      items.push({ name: 'Total Alkalinity', amount: 'No action needed', note: `Target 80–120 ${u}`, reading: ta, readingUnit: u, param: 'TA', cls: 'dose-ok' });
     }
   }
 
   if (ch !== null) {
     if (ch < 200) {
       const lbs = ((200 - ch) * GALLONS * 0.00002).toFixed(1);
-      items.push({ name: 'Add calcium chloride (CH+)', amount: `${lbs} lbs`, note: `Raise CH ${ch} → 200 ${u}. Dissolve in a bucket of water first, add slowly.`, cls: 'dose-warn' });
+      items.push({ name: 'Add calcium chloride (CH+)', amount: `${lbs} lbs`, note: `Raise CH ${ch} → 200 ${u}. Dissolve in a bucket of water first, add slowly.`, reading: ch, readingUnit: u, param: 'CH', cls: 'dose-warn' });
     } else if (ch > 400) {
-      items.push({ name: 'Calcium Hardness — high', amount: 'Partial drain/refill', note: `CH ${ch} ${u} is above 400. Replace 20–30% water with fresh.`, cls: 'dose-warn' });
+      items.push({ name: 'Calcium Hardness — high', amount: 'Partial drain/refill', note: `Above 400 ${u}. Replace 20–30% water with fresh.`, reading: ch, readingUnit: u, param: 'CH', cls: 'dose-warn' });
     } else {
-      items.push({ name: 'Calcium Hardness', amount: 'No action needed', note: `${ch} ${u} is within range (200–400 ${u})`, cls: 'dose-ok' });
+      items.push({ name: 'Calcium Hardness', amount: 'No action needed', note: `Target 200–400 ${u}`, reading: ch, readingUnit: u, param: 'CH', cls: 'dose-ok' });
     }
   }
 
   if (salt !== null) {
     if (salt < 2700) {
       const lbs = Math.round((3200 - salt) * GALLONS / 1000000 * 8.34);
-      items.push({ name: 'Add pool salt', amount: `${lbs} lbs`, note: `Raise salt ${salt} → 3200 ${u}. Use non-iodized pool salt. Run pump 24h before retesting.`, cls: 'dose-warn' });
+      items.push({ name: 'Add pool salt', amount: `${lbs} lbs`, note: `Raise salt ${salt} → 3200 ${u}. Non-iodized pool salt. Run pump 24h before retesting.`, reading: salt, readingUnit: u, param: 'Salt', cls: 'dose-warn' });
     } else if (salt > 3500) {
-      items.push({ name: 'Salt — high', amount: 'Partial drain/refill', note: `${salt} ${u} is above 3500. Drain and refill some water to dilute.`, cls: 'dose-warn' });
+      items.push({ name: 'Salt — high', amount: 'Partial drain/refill', note: `Above 3500 ${u}. Drain and refill some water to dilute.`, reading: salt, readingUnit: u, param: 'Salt', cls: 'dose-warn' });
     } else {
-      items.push({ name: 'Salt', amount: 'No action needed', note: `${salt} ${u} is within target (2700–3400 ${u})`, cls: 'dose-ok' });
+      items.push({ name: 'Salt', amount: 'No action needed', note: `Target 2700–3400 ${u}`, reading: salt, readingUnit: u, param: 'Salt', cls: 'dose-ok' });
     }
   }
 
@@ -415,19 +421,26 @@ function updateDosing(fc, cc, ph, ta, ch, salt, cya, temp) {
     if (cya < 60) {
       const lbs = ((70 - cya) * GALLONS / 1000000 * 8.34).toFixed(2);
       const oz = (lbs * 16).toFixed(0);
-      items.push({ name: 'Add stabilizer / CYA', amount: `${lbs} lbs (${oz} oz)`, note: `Raise CYA ${cya} → 70 ${u}. Dissolve in warm water first. Takes 1–2 weeks to fully register.`, cls: 'dose-warn' });
+      items.push({ name: 'Add stabilizer / CYA', amount: `${lbs} lbs (${oz} oz)`, note: `Raise CYA ${cya} → 70 ${u}. Dissolve in warm water first. Takes 1–2 weeks to register.`, reading: cya, readingUnit: u, param: 'CYA', cls: 'dose-warn' });
     } else if (cya > 90) {
-      items.push({ name: 'CYA — high', amount: 'Partial drain/refill', note: `CYA ${cya} ${u} reduces chlorine effectiveness. Dilute with fresh water; no chemical fix.`, cls: 'dose-warn' });
+      items.push({ name: 'CYA — high', amount: 'Partial drain/refill', note: `Above 90 ${u} reduces chlorine effectiveness. Dilute with fresh water; no chemical fix.`, reading: cya, readingUnit: u, param: 'CYA', cls: 'dose-warn' });
     } else {
-      items.push({ name: 'Cyanuric Acid', amount: 'No action needed', note: `${cya} ${u} is within range (60–80 ${u} for SWG)`, cls: 'dose-ok' });
+      items.push({ name: 'Cyanuric Acid', amount: 'No action needed', note: `Target 60–80 ${u} for SWG`, reading: cya, readingUnit: u, param: 'CYA', cls: 'dose-ok' });
     }
   }
 
   list.innerHTML = items.map(i => `
     <div class="dose-card ${i.cls}">
-      <p class="dose-name">${i.name}</p>
-      <p class="dose-amount">${i.amount}</p>
-      <p class="dose-note">${i.note}</p>
+      <div class="dose-reading">
+        <div class="dose-reading-label">${i.param}</div>
+        <div class="dose-reading-value">${i.reading}</div>
+        <div class="dose-reading-unit">${i.readingUnit}</div>
+      </div>
+      <div class="dose-body">
+        <p class="dose-name">${i.name}</p>
+        <p class="dose-amount">${i.amount}</p>
+        <p class="dose-note">${i.note}</p>
+      </div>
     </div>
   `).join('');
 }
