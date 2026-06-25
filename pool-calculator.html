@@ -190,11 +190,11 @@
     <div class="card" style="margin-top: 1.5rem;">
       <p class="section-title">Chlorine product concentration</p>
       <div style="margin-bottom: 14px;">
-        <label style="font-size: 13px; color: #666; display:block; margin-bottom:6px;">Liquid chlorine (bleach)</label>
+        <label style="font-size: 13px; color: #666; display:block; margin-bottom:6px;">Sodium hypochlorite (NaOCl) — liquid chlorine</label>
         <div class="conc-selector" id="bleach-conc">
-          <button class="conc-btn sel" onclick="setConc('bleach', 6, this)">6%</button>
+          <button class="conc-btn" onclick="setConc('bleach', 6, this)">6%</button>
           <button class="conc-btn" onclick="setConc('bleach', 8.25, this)">8.25%</button>
-          <button class="conc-btn" onclick="setConc('bleach', 10, this)">10%</button>
+          <button class="conc-btn sel" onclick="setConc('bleach', 10, this)">10%</button>
           <button class="conc-btn" onclick="setConc('bleach', 12.5, this)">12.5%</button>
         </div>
       </div>
@@ -270,7 +270,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
 const GALLONS = 19800;
-let concs = { bleach: 6, shock: 65, acid: 31.45 };
+let concs = { bleach: 10, shock: 65, acid: 31.45 };
 let history = JSON.parse(localStorage.getItem('poolHistory_19800') || '[]');
 let trendChart = null;
 let activeTrend = 'fc';
