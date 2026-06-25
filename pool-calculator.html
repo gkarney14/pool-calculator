@@ -370,8 +370,8 @@ function updateDosing(fc, cc, ph, ta, ch, salt, cya, temp) {
       const oz = ((ph - 7.4) * GALLONS * (taForCalc / 100) * 0.004 * (31.45 / concs.acid)).toFixed(1);
       items.push({ name: `Add muriatic acid (${concs.acid}%)`, amount: `${oz} fl oz (${(oz / 128).toFixed(2)} gal)`, note: `Lower pH ${ph} → 7.4. Based on TA ${taForCalc} ppm. Pour near return jet with pump running.`, cls: 'dose-warn' });
     } else if (ph < 7.2) {
-      const lbs = ((7.4 - ph) * GALLONS * 0.0000015).toFixed(2);
-      items.push({ name: 'Add soda ash (pH+)', amount: `${lbs} lbs`, note: `Raise pH ${ph} → 7.4`, cls: 'dose-warn' });
+      const lbs = ((7.4 - ph) * GALLONS * 0.000219).toFixed(2);
+      items.push({ name: 'Add soda ash (pH+)', amount: `${lbs} lbs`, note: `Raise pH ${ph} → 7.4. Add in front of a return jet with pump running.`, cls: 'dose-warn' });
     } else {
       items.push({ name: 'pH', amount: 'No action needed', note: `${ph} is within target (7.2–7.6)`, cls: 'dose-ok' });
     }
@@ -379,7 +379,7 @@ function updateDosing(fc, cc, ph, ta, ch, salt, cya, temp) {
 
   if (ta !== null) {
     if (ta < 80) {
-      const lbs = ((80 - ta) / 10 * GALLONS / 1000 * 1.4).toFixed(1);
+      const lbs = ((80 - ta) * GALLONS * 0.000015).toFixed(1);
       items.push({ name: 'Add baking soda (TA+)', amount: `${lbs} lbs`, note: `Raise TA ${ta} → 80 ${u}. Add in increments, retest each time.`, cls: 'dose-warn' });
     } else if (ta > 120) {
       const oz = ((ta - 100) * GALLONS * 0.0001 * (31.45 / concs.acid)).toFixed(1);
@@ -391,8 +391,8 @@ function updateDosing(fc, cc, ph, ta, ch, salt, cya, temp) {
 
   if (ch !== null) {
     if (ch < 200) {
-      const lbs = ((200 - ch) * GALLONS / 1000 * 0.12).toFixed(1);
-      items.push({ name: 'Add calcium chloride (CH+)', amount: `${lbs} lbs`, note: `Raise CH ${ch} → 200 ${u}. Dissolve in a bucket first.`, cls: 'dose-warn' });
+      const lbs = ((200 - ch) * GALLONS * 0.00002).toFixed(1);
+      items.push({ name: 'Add calcium chloride (CH+)', amount: `${lbs} lbs`, note: `Raise CH ${ch} → 200 ${u}. Dissolve in a bucket of water first, add slowly.`, cls: 'dose-warn' });
     } else if (ch > 400) {
       items.push({ name: 'Calcium Hardness — high', amount: 'Partial drain/refill', note: `CH ${ch} ${u} is above 400. Replace 20–30% water with fresh.`, cls: 'dose-warn' });
     } else {
