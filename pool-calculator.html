@@ -366,8 +366,9 @@ function updateDosing(fc, cc, ph, ta, ch, salt, cya, temp) {
 
   if (ph !== null) {
     if (ph > 7.6) {
-      const oz = ((ph - 7.4) * GALLONS * 0.00025 * (31.45 / concs.acid)).toFixed(1);
-      items.push({ name: `Add muriatic acid (${concs.acid}%)`, amount: `${oz} fl oz`, note: `Lower pH ${ph} → 7.4. Pour near return jet with pump running.`, cls: 'dose-warn' });
+      const taForCalc = ta || 100;
+      const oz = ((ph - 7.4) * GALLONS * (taForCalc / 100) * 0.004 * (31.45 / concs.acid)).toFixed(1);
+      items.push({ name: `Add muriatic acid (${concs.acid}%)`, amount: `${oz} fl oz (${(oz / 128).toFixed(2)} gal)`, note: `Lower pH ${ph} → 7.4. Based on TA ${taForCalc} ppm. Pour near return jet with pump running.`, cls: 'dose-warn' });
     } else if (ph < 7.2) {
       const lbs = ((7.4 - ph) * GALLONS * 0.0000015).toFixed(2);
       items.push({ name: 'Add soda ash (pH+)', amount: `${lbs} lbs`, note: `Raise pH ${ph} → 7.4`, cls: 'dose-warn' });
@@ -381,8 +382,8 @@ function updateDosing(fc, cc, ph, ta, ch, salt, cya, temp) {
       const lbs = ((80 - ta) / 10 * GALLONS / 1000 * 1.4).toFixed(1);
       items.push({ name: 'Add baking soda (TA+)', amount: `${lbs} lbs`, note: `Raise TA ${ta} → 80 ${u}. Add in increments, retest each time.`, cls: 'dose-warn' });
     } else if (ta > 120) {
-      const oz = ((ta - 100) * GALLONS * 0.0000011 * (31.45 / concs.acid)).toFixed(1);
-      items.push({ name: `Muriatic acid ${concs.acid}% (lower TA)`, amount: `${oz} fl oz`, note: `Lower TA ${ta} → 100 ${u}. Add acid, then aerate to degas CO₂.`, cls: 'dose-warn' });
+      const oz = ((ta - 100) * GALLONS * 0.0001 * (31.45 / concs.acid)).toFixed(1);
+      items.push({ name: `Muriatic acid ${concs.acid}% (lower TA)`, amount: `${oz} fl oz (${(oz / 128).toFixed(2)} gal)`, note: `Lower TA ${ta} → 100 ${u}. Add in 2–3 doses with aeration between each to degas CO₂.`, cls: 'dose-warn' });
     } else {
       items.push({ name: 'Total Alkalinity', amount: 'No action needed', note: `${ta} ${u} is within target (80–120 ${u})`, cls: 'dose-ok' });
     }
