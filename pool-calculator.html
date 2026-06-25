@@ -334,7 +334,7 @@ function calcLSI(ph, ta, ch, temp) {
 }
 
 function bleachOz(ppmNeeded) {
-  return (ppmNeeded * GALLONS * 8.34 * 0.000128) / (concs.bleach / 100);
+  return (ppmNeeded * GALLONS * 0.000128) / (concs.bleach / 100);
 }
 
 function updateDosing(fc, cc, ph, ta, ch, salt, cya, temp) {
