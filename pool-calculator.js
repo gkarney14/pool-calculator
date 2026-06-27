@@ -239,13 +239,13 @@ function clearHistory() {
 }
 
 const TREND_PARAMS = {
-  fc:   { label: 'Free Chlorine', unit: 'ppm', color: '#378ADD' },
-  ph:   { label: 'pH',            unit: '',    color: '#1D9E75' },
-  ta:   { label: 'Alkalinity',    unit: 'ppm', color: '#D85A30' },
-  ch:   { label: 'Ca Hardness',   unit: 'ppm', color: '#BA7517' },
-  salt: { label: 'Salt',          unit: 'ppm', color: '#7F77DD' },
-  cya:  { label: 'CYA',           unit: 'ppm', color: '#D4537E' },
-  temp: { label: 'Temp',          unit: '°F',  color: '#888780' }
+  fc:   { label: 'Free Chlorine', unit: 'ppm', color: '#378ADD', target: [2, 4] },
+  ph:   { label: 'pH',            unit: '',    color: '#1D9E75', target: [7.2, 7.6] },
+  ta:   { label: 'Alkalinity',    unit: 'ppm', color: '#D85A30', target: [80, 120] },
+  ch:   { label: 'Ca Hardness',   unit: 'ppm', color: '#BA7517', target: [200, 400] },
+  salt: { label: 'Salt',          unit: 'ppm', color: '#7F77DD', target: [2700, 3400] },
+  cya:  { label: 'CYA',           unit: 'ppm', color: '#D4537E', target: [60, 80] },
+  temp: { label: 'Temp',          unit: '°F',  color: '#888780', target: [78, 86] }
 };
 
 function setTrend(p) {
@@ -288,7 +288,13 @@ function renderHistory() {
   const validData = data.filter(x => x !== null);
   const dataMin = validData.length ? Math.min(...validData) : 0;
   const dataMax = validData.length ? Math.max(...validData) : 10;
-  const pad = (dataMax - dataMin) * 0.2 || 1;
+  const [tLow, tHigh] = p.target;
+  const allMin = Math.min(dataMin, tLow);
+  const allMax = Math.max(dataMax, tHigh);
+  const pad = (allMax - allMin) * 0.2 || 1;
+
+  const bandLow  = labels.map(() => tLow);
+  const bandHigh = labels.map(() => tHigh);
 
   if (trendChart) { trendChart.destroy(); trendChart = null; }
   const ctx = document.getElementById('trendChart').getContext('2d');
@@ -296,29 +302,56 @@ function renderHistory() {
     type: 'line',
     data: {
       labels,
-      datasets: [{
-        label: p.label,
-        data,
-        borderColor: p.color,
-        backgroundColor: p.color + '22',
-        fill: true,
-        tension: 0.3,
-        pointRadius: 5,
-        pointHoverRadius: 7,
-        spanGaps: true
-      }]
+      datasets: [
+        {
+          label: 'Target low',
+          data: bandLow,
+          borderColor: 'transparent',
+          backgroundColor: p.color + '25',
+          fill: '+1',
+          pointRadius: 0,
+          pointHoverRadius: 0,
+          tension: 0,
+          spanGaps: true
+        },
+        {
+          label: 'Target high',
+          data: bandHigh,
+          borderColor: 'transparent',
+          backgroundColor: p.color + '25',
+          fill: false,
+          pointRadius: 0,
+          pointHoverRadius: 0,
+          tension: 0,
+          spanGaps: true
+        },
+        {
+          label: p.label,
+          data,
+          borderColor: p.color,
+          backgroundColor: 'transparent',
+          fill: false,
+          tension: 0.3,
+          pointRadius: 5,
+          pointHoverRadius: 7,
+          spanGaps: true
+        }
+      ]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: (c) => `${p.label}: ${c.parsed.y}${p.unit}` } }
+        tooltip: {
+          filter: (item) => item.datasetIndex === 2,
+          callbacks: { label: (c) => `${p.label}: ${c.parsed.y}${p.unit}` }
+        }
       },
       scales: {
         y: {
-          min: Math.max(0, dataMin - pad),
-          max: dataMax + pad,
+          min: Math.max(0, allMin - pad),
+          max: allMax + pad,
           grid: { color: 'rgba(128,128,128,0.1)' },
           ticks: { color: '#888' }
         },
