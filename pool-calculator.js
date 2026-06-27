@@ -1,0 +1,420 @@
+const GALLONS = 19800;
+let concs = { bleach: 10, shock: 65, acid: 14.5 };
+let history = JSON.parse(localStorage.getItem('poolHistory_19800') || '[]');
+let lastDosing = JSON.parse(localStorage.getItem('poolLastDosing_19800') || 'null');
+let trendChart = null;
+let activeTrend = 'fc';
+let unitLabel = 'ppm';
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function setUnit(u) {
+  unitLabel = u;
+  document.querySelectorAll('.unit-label').forEach(el => el.textContent = unitLabel);
+  document.getElementById('unit-ppm').style.background = u === 'ppm' ? '#378ADD' : '#f5f5f3';
+  document.getElementById('unit-ppm').style.color      = u === 'ppm' ? '#fff'    : '#888';
+  document.getElementById('unit-mgl').style.background = u === 'mgl' ? '#378ADD' : '#f5f5f3';
+  document.getElementById('unit-mgl').style.color      = u === 'mgl' ? '#fff'    : '#888';
+  updateAll();
+}
+
+function v(id) { return parseFloat(document.getElementById(id).value) || null; }
+
+function badge(val, low, high) {
+  if (val === null) return '';
+  let cls, txt;
+  if (val >= low && val <= high) { cls = 'status-ok'; txt = 'In range'; }
+  else if (val < low * 0.8 || val > high * 1.2) { cls = 'status-danger'; txt = 'Action needed'; }
+  else { cls = 'status-warn'; txt = 'Out of range'; }
+  return `<span class="status-badge ${cls}">${txt}</span>`;
+}
+
+function updateAll() {
+  const fc = v('fc'), cc = v('cc'), ph = v('ph'), ta = v('ta'), ch = v('ch');
+  const salt = v('salt'), cya = v('cya'), temp = v('temp');
+
+  document.getElementById('fc-status').innerHTML = badge(fc, 2, 4);
+  document.getElementById('cc-status').innerHTML = badge(cc, 0, 0.5);
+  document.getElementById('ph-status').innerHTML = badge(ph, 7.2, 7.6);
+  document.getElementById('ta-status').innerHTML = badge(ta, 80, 120);
+  document.getElementById('ch-status').innerHTML = badge(ch, 200, 400);
+  document.getElementById('salt-status').innerHTML = badge(salt, 2700, 3400);
+  document.getElementById('cya-status').innerHTML = badge(cya, 60, 80);
+  document.getElementById('temp-status').innerHTML = temp !== null ? `<span style="font-size:13px;color:#888;">${temp}&deg;F</span>` : '';
+
+  calcLSI(ph, ta, ch, temp);
+  updateDosing(fc, cc, ph, ta, ch, salt, cya, temp);
+}
+
+function calcLSI(ph, ta, ch, temp) {
+  const box = document.getElementById('csi-box');
+  if (!ph || !ta || !ch || !temp) { box.style.display = 'none'; return; }
+  box.style.display = '';
+  const tc = (temp - 32) * 5 / 9;
+  const pHs = (9.3 + Math.log10(ta) - 1) + (Math.log10(ch) - 2) - (tc > 25 ? 0.3 : tc > 15 ? 0.2 : 0.1);
+  const lsi = ph - pHs;
+  let color, label, note;
+  if (lsi < -0.5)      { color = '#A32D2D'; label = 'Corrosive';          note = 'Water may etch plaster and corrode metal. Raise TA or calcium hardness.'; }
+  else if (lsi < -0.3) { color = '#854F0B'; label = 'Slightly corrosive'; note = 'Consider raising alkalinity or calcium hardness slightly.'; }
+  else if (lsi <= 0.3) { color = '#3B6D11'; label = 'Balanced';           note = 'Water is well-balanced — not scaling or corrosive.'; }
+  else if (lsi <= 0.5) { color = '#854F0B'; label = 'Slightly scaling';   note = 'Monitor — may deposit scale on surfaces and equipment.'; }
+  else                 { color = '#A32D2D'; label = 'Scaling';            note = 'Calcium scale will form. Lower TA, CH, or pH.'; }
+  document.getElementById('csi-value').textContent = lsi.toFixed(2);
+  document.getElementById('csi-value').style.color = color;
+  document.getElementById('csi-label').textContent = label;
+  document.getElementById('csi-note').textContent = note;
+}
+
+function bleachOz(ppmNeeded) {
+  return (ppmNeeded * GALLONS * 0.000128) / (concs.bleach / 100);
+}
+
+function renderDosingItems(items, heldDate) {
+  const list = document.getElementById('dosing-list');
+  let html = '';
+  if (heldDate) {
+    html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;padding:9px 13px;background:#E6F1FB;border-radius:8px;border-left:3px solid #378ADD;">
+      <i class="ti ti-clock" aria-hidden="true" style="color:#378ADD;font-size:16px;flex-shrink:0;"></i>
+      <span style="font-size:13px;color:#185FA5;">Held results from <strong>${escapeHtml(heldDate)}</strong> — enter new readings to recalculate.</span>
+    </div>`;
+  }
+  html += items.map(i => `
+    <div class="dose-card ${i.cls}">
+      <div class="dose-reading">
+        <div class="dose-reading-label">${i.param}</div>
+        <div class="dose-reading-value">${i.reading}</div>
+        <div class="dose-reading-unit">${i.readingUnit}</div>
+      </div>
+      <div class="dose-body">
+        <p class="dose-name">${i.name}</p>
+        <p class="dose-amount">${i.amount}</p>
+        <p class="dose-note">${i.note}</p>
+      </div>
+    </div>
+  `).join('');
+  list.innerHTML = html;
+}
+
+function updateDosing(fc, cc, ph, ta, ch, salt, cya, temp) {
+  const list = document.getElementById('dosing-list');
+  if (fc === null && ph === null && ta === null && ch === null && salt === null && cya === null) {
+    if (lastDosing && lastDosing.items && lastDosing.items.length > 0) {
+      renderDosingItems(lastDosing.items, lastDosing.date);
+    } else {
+      list.innerHTML = '<p style="font-size:14px;color:#888;">Enter readings on the Readings tab to see dosing recommendations.</p>';
+    }
+    return;
+  }
+  const items = [];
+  const u = unitLabel;
+
+  if (fc !== null) {
+    if (fc < 2) {
+      const oz = bleachOz(3 - fc);
+      items.push({ name: 'Add liquid chlorine', amount: `${oz.toFixed(1)} fl oz (${(oz/128).toFixed(2)} gal)`, note: `${concs.bleach}% NaOCl to raise FC ${fc} → 3 ${u}`, reading: fc, readingUnit: u, param: 'FC', cls: 'dose-warn' });
+    } else if (fc > 5) {
+      items.push({ name: 'Free Chlorine — high', amount: 'Reduce SWG output', note: 'Dial back the cell % or let it drop naturally.', reading: fc, readingUnit: u, param: 'FC', cls: 'dose-warn' });
+    } else {
+      items.push({ name: 'Free Chlorine', amount: 'No action needed', note: `Target 2–4 ${u}`, reading: fc, readingUnit: u, param: 'FC', cls: 'dose-ok' });
+    }
+  }
+
+  if (cc !== null && cc > 0.5) {
+    const shockLvl = cya ? (cya * 0.4) : 10;
+    const oz = bleachOz(Math.max(0, shockLvl - (fc || 0)));
+    items.push({ name: 'SLAM shock — CC too high', amount: `${oz.toFixed(0)} fl oz (${(oz/128).toFixed(2)} gal) NaOCl`, note: `${concs.bleach}% bleach to raise FC to ${shockLvl.toFixed(0)} ${u} (CYA×0.4). Hold until CC < 0.5 ${u} and pool is clear.`, reading: cc, readingUnit: u, param: 'CC', cls: 'dose-warn' });
+  }
+
+  if (ph !== null) {
+    if (ph > 7.6) {
+      const taForCalc = ta || 100;
+      const oz = ((ph - 7.4) * GALLONS * (taForCalc / 100) * 0.004 * (31.45 / concs.acid)).toFixed(1);
+      items.push({ name: `Muriatic acid (${concs.acid}%)`, amount: `${oz} fl oz (${(oz / 128).toFixed(2)} gal)`, note: `Lower pH ${ph} → 7.4. Based on TA ${taForCalc} ${u}. Pour near return jet with pump running.`, reading: ph, readingUnit: '', param: 'pH', cls: 'dose-warn' });
+    } else if (ph < 7.2) {
+      const lbs = ((7.4 - ph) * GALLONS * 0.000219).toFixed(2);
+      items.push({ name: 'Add soda ash (pH+)', amount: `${lbs} lbs`, note: `Raise pH ${ph} → 7.4. Add in front of a return jet with pump running.`, reading: ph, readingUnit: '', param: 'pH', cls: 'dose-warn' });
+    } else {
+      items.push({ name: 'pH', amount: 'No action needed', note: 'Target 7.2–7.6', reading: ph, readingUnit: '', param: 'pH', cls: 'dose-ok' });
+    }
+  }
+
+  if (ta !== null) {
+    if (ta < 80) {
+      const lbs = ((80 - ta) * GALLONS * 0.000015).toFixed(1);
+      items.push({ name: 'Add baking soda (TA+)', amount: `${lbs} lbs`, note: `Raise TA ${ta} → 80 ${u}. Add in increments, retest each time.`, reading: ta, readingUnit: u, param: 'TA', cls: 'dose-warn' });
+    } else if (ta > 120) {
+      const oz = ((ta - 100) * GALLONS * 0.0001 * (31.45 / concs.acid)).toFixed(1);
+      items.push({ name: `Muriatic acid ${concs.acid}% (lower TA)`, amount: `${oz} fl oz (${(oz / 128).toFixed(2)} gal)`, note: `Lower TA ${ta} → 100 ${u}. Add in 2–3 doses with aeration between each to degas CO₂.`, reading: ta, readingUnit: u, param: 'TA', cls: 'dose-warn' });
+    } else {
+      items.push({ name: 'Total Alkalinity', amount: 'No action needed', note: `Target 80–120 ${u}`, reading: ta, readingUnit: u, param: 'TA', cls: 'dose-ok' });
+    }
+  }
+
+  if (ch !== null) {
+    if (ch < 200) {
+      const lbs = ((200 - ch) * GALLONS * 0.00002).toFixed(1);
+      items.push({ name: 'Add calcium chloride (CH+)', amount: `${lbs} lbs`, note: `Raise CH ${ch} → 200 ${u}. Dissolve in a bucket of water first, add slowly.`, reading: ch, readingUnit: u, param: 'CH', cls: 'dose-warn' });
+    } else if (ch > 400) {
+      items.push({ name: 'Calcium Hardness — high', amount: 'Partial drain/refill', note: `Above 400 ${u}. Replace 20–30% water with fresh.`, reading: ch, readingUnit: u, param: 'CH', cls: 'dose-warn' });
+    } else {
+      items.push({ name: 'Calcium Hardness', amount: 'No action needed', note: `Target 200–400 ${u}`, reading: ch, readingUnit: u, param: 'CH', cls: 'dose-ok' });
+    }
+  }
+
+  if (salt !== null) {
+    if (salt < 2700) {
+      const lbs = Math.round((3200 - salt) * GALLONS / 1000000 * 8.34);
+      items.push({ name: 'Add pool salt', amount: `${lbs} lbs`, note: `Raise salt ${salt} → 3200 ${u}. Non-iodized pool salt. Run pump 24h before retesting.`, reading: salt, readingUnit: u, param: 'Salt', cls: 'dose-warn' });
+    } else if (salt > 3500) {
+      items.push({ name: 'Salt — high', amount: 'Partial drain/refill', note: `Above 3500 ${u}. Drain and refill some water to dilute.`, reading: salt, readingUnit: u, param: 'Salt', cls: 'dose-warn' });
+    } else {
+      items.push({ name: 'Salt', amount: 'No action needed', note: `Target 2700–3400 ${u}`, reading: salt, readingUnit: u, param: 'Salt', cls: 'dose-ok' });
+    }
+  }
+
+  if (cya !== null) {
+    if (cya < 60) {
+      const lbs = ((70 - cya) * GALLONS / 1000000 * 8.34).toFixed(2);
+      const oz = (lbs * 16).toFixed(0);
+      items.push({ name: 'Add stabilizer / CYA', amount: `${lbs} lbs (${oz} oz)`, note: `Raise CYA ${cya} → 70 ${u}. Dissolve in warm water first. Takes 1–2 weeks to register.`, reading: cya, readingUnit: u, param: 'CYA', cls: 'dose-warn' });
+    } else if (cya > 90) {
+      items.push({ name: 'CYA — high', amount: 'Partial drain/refill', note: `Above 90 ${u} reduces chlorine effectiveness. Dilute with fresh water; no chemical fix.`, reading: cya, readingUnit: u, param: 'CYA', cls: 'dose-warn' });
+    } else {
+      items.push({ name: 'Cyanuric Acid', amount: 'No action needed', note: `Target 60–80 ${u} for SWG`, reading: cya, readingUnit: u, param: 'CYA', cls: 'dose-ok' });
+    }
+  }
+
+  if (items.length > 0) {
+    const date = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' ' + new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    lastDosing = { items, date };
+    localStorage.setItem('poolLastDosing_19800', JSON.stringify(lastDosing));
+  }
+  renderDosingItems(items, null);
+}
+
+function setConc(chem, val, btn) {
+  concs[chem] = val;
+  btn.parentElement.querySelectorAll('.conc-btn').forEach(b => b.classList.remove('sel'));
+  btn.classList.add('sel');
+  updateAll();
+}
+
+function logReading() {
+  const entry = {
+    date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' ' + new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
+    ts: Date.now(),
+    fc: v('fc'), cc: v('cc'), ph: v('ph'), ta: v('ta'),
+    ch: v('ch'), salt: v('salt'), cya: v('cya'), temp: v('temp')
+  };
+  const hasData = [entry.fc, entry.cc, entry.ph, entry.ta, entry.ch, entry.salt, entry.cya, entry.temp].some(x => x !== null);
+  if (!hasData) { alert('Please enter at least one reading before logging.'); return; }
+  history.unshift(entry);
+  localStorage.setItem('poolHistory_19800', JSON.stringify(history));
+  document.getElementById('last-logged').textContent = 'Last logged: ' + entry.date;
+  renderHistory();
+}
+
+function deleteEntry(i) {
+  history.splice(i, 1);
+  localStorage.setItem('poolHistory_19800', JSON.stringify(history));
+  document.getElementById('last-logged').textContent = history.length > 0
+    ? 'Last logged: ' + history[0].date
+    : 'No readings logged';
+  renderHistory();
+}
+
+function clearHistory() {
+  if (!confirm('Clear all logged readings? This cannot be undone.')) return;
+  history = [];
+  localStorage.removeItem('poolHistory_19800');
+  document.getElementById('last-logged').textContent = 'No readings logged';
+  renderHistory();
+}
+
+const TREND_PARAMS = {
+  fc:   { label: 'Free Chlorine', unit: 'ppm', color: '#378ADD' },
+  ph:   { label: 'pH',            unit: '',    color: '#1D9E75' },
+  ta:   { label: 'Alkalinity',    unit: 'ppm', color: '#D85A30' },
+  ch:   { label: 'Ca Hardness',   unit: 'ppm', color: '#BA7517' },
+  salt: { label: 'Salt',          unit: 'ppm', color: '#7F77DD' },
+  cya:  { label: 'CYA',           unit: 'ppm', color: '#D4537E' },
+  temp: { label: 'Temp',          unit: '°F',  color: '#888780' }
+};
+
+function setTrend(p) {
+  activeTrend = p;
+  renderHistory();
+}
+
+function renderHistory() {
+  const empty = document.getElementById('trend-empty');
+  const charts = document.getElementById('trend-charts');
+  if (history.length < 2) {
+    empty.style.display = '';
+    charts.style.display = 'none';
+    if (trendChart) { trendChart.destroy(); trendChart = null; }
+    return;
+  }
+  empty.style.display = 'none';
+  charts.style.display = '';
+
+  const sorted = [...history].sort((a, b) => a.ts - b.ts);
+  const labels = sorted.map(e => e.date);
+
+  const legend = document.getElementById('trend-legend');
+  legend.innerHTML = '';
+  Object.entries(TREND_PARAMS).forEach(([key, p]) => {
+    const isSel = key === activeTrend;
+    const btn = document.createElement('button');
+    btn.className = 'trend-btn' + (isSel ? ' sel' : '');
+    if (isSel) btn.style.cssText = `background:${p.color}22;border-color:${p.color};color:${p.color};`;
+    const dot = document.createElement('span');
+    dot.style.cssText = `width:10px;height:10px;border-radius:2px;background:${p.color};display:inline-block;`;
+    btn.appendChild(dot);
+    btn.appendChild(document.createTextNode(' ' + p.label));
+    btn.addEventListener('click', () => setTrend(key));
+    legend.appendChild(btn);
+  });
+
+  const p = TREND_PARAMS[activeTrend];
+  const data = sorted.map(e => e[activeTrend]);
+  const validData = data.filter(x => x !== null);
+  const dataMin = validData.length ? Math.min(...validData) : 0;
+  const dataMax = validData.length ? Math.max(...validData) : 10;
+  const pad = (dataMax - dataMin) * 0.2 || 1;
+
+  if (trendChart) { trendChart.destroy(); trendChart = null; }
+  const ctx = document.getElementById('trendChart').getContext('2d');
+  trendChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: p.label,
+        data,
+        borderColor: p.color,
+        backgroundColor: p.color + '22',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        spanGaps: true
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: (c) => `${p.label}: ${c.parsed.y}${p.unit}` } }
+      },
+      scales: {
+        y: {
+          min: Math.max(0, dataMin - pad),
+          max: dataMax + pad,
+          grid: { color: 'rgba(128,128,128,0.1)' },
+          ticks: { color: '#888' }
+        },
+        x: {
+          grid: { display: false },
+          ticks: { color: '#888', maxRotation: 30, autoSkip: false }
+        }
+      }
+    }
+  });
+
+  const u = unitLabel;
+  const historyList = document.getElementById('history-list');
+  historyList.innerHTML = '';
+  history.slice(0, 15).forEach((e, i) => {
+    const row = document.createElement('div');
+    row.className = 'history-row';
+
+    const dateSpan = document.createElement('span');
+    dateSpan.className = 'history-date';
+    dateSpan.textContent = e.date;
+    row.appendChild(dateSpan);
+
+    [
+      e.fc   !== null && ['FC',   `${e.fc} ${u}`],
+      e.ph   !== null && ['pH',   `${e.ph}`],
+      e.ta   !== null && ['TA',   `${e.ta} ${u}`],
+      e.ch   !== null && ['CH',   `${e.ch} ${u}`],
+      e.salt !== null && ['Salt', `${e.salt} ${u}`],
+      e.cya  !== null && ['CYA',  `${e.cya} ${u}`],
+      e.temp !== null && ['Temp', `${e.temp}°F`],
+    ].filter(Boolean).forEach(([label, val]) => {
+      const span = document.createElement('span');
+      const b = document.createElement('b');
+      b.textContent = label;
+      span.appendChild(b);
+      span.appendChild(document.createTextNode(' ' + val));
+      row.appendChild(span);
+    });
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'del-btn';
+    delBtn.title = 'Delete this entry';
+    delBtn.setAttribute('aria-label', `Delete entry from ${escapeHtml(e.date)}`);
+    delBtn.dataset.index = i;
+    const icon = document.createElement('i');
+    icon.className = 'ti ti-x';
+    icon.setAttribute('aria-hidden', 'true');
+    delBtn.appendChild(icon);
+    row.appendChild(delBtn);
+
+    historyList.appendChild(row);
+  });
+}
+
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+  if (name === 'trends') renderHistory();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.tab[data-tab]').forEach(btn => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab, btn));
+  });
+
+  document.getElementById('unit-ppm').addEventListener('click', () => setUnit('ppm'));
+  document.getElementById('unit-mgl').addEventListener('click', () => setUnit('mgl'));
+
+  ['fc','cc','ph','ta','ch','salt','cya','temp'].forEach(id => {
+    document.getElementById(id).addEventListener('input', updateAll);
+  });
+
+  document.getElementById('log-btn').addEventListener('click', logReading);
+
+  document.getElementById('clear-history-link').addEventListener('click', e => {
+    e.preventDefault();
+    clearHistory();
+  });
+
+  document.querySelectorAll('.conc-btn[data-chem]').forEach(btn => {
+    btn.addEventListener('click', () => setConc(btn.dataset.chem, Number(btn.dataset.val), btn));
+  });
+
+  document.getElementById('history-list').addEventListener('click', e => {
+    const btn = e.target.closest('.del-btn[data-index]');
+    if (btn) deleteEntry(Number(btn.dataset.index));
+  });
+
+  if (history.length > 0) {
+    document.getElementById('last-logged').textContent = 'Last logged: ' + history[0].date;
+  }
+
+  if (lastDosing && lastDosing.items && lastDosing.items.length > 0) {
+    renderDosingItems(lastDosing.items, lastDosing.date);
+  }
+});
