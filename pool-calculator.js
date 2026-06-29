@@ -442,6 +442,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('unit-ppm').addEventListener('click', () => setUnit('ppm'));
   document.getElementById('unit-mgl').addEventListener('click', () => setUnit('mgl'));
+  document.getElementById('ch-mode-ch').addEventListener('click', () => setChMode('ch'));
+  document.getElementById('ch-mode-th').addEventListener('click', () => setChMode('th'));
 
   ['fc','cc','ph','ta','ch','salt','cya','temp'].forEach(id => {
     document.getElementById(id).addEventListener('input', updateAll);
