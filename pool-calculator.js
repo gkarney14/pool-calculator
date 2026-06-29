@@ -5,6 +5,7 @@ let lastDosing = JSON.parse(localStorage.getItem('poolLastDosing_19800') || 'nul
 let trendChart = null;
 let activeTrend = 'fc';
 let unitLabel = 'ppm';
+let chMode = 'ch';
 
 function escapeHtml(str) {
   return String(str)
@@ -13,6 +14,22 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+function setChMode(mode) {
+  chMode = mode;
+  document.getElementById('ch-mode-ch').style.background = mode === 'ch' ? '#378ADD' : '#f5f5f3';
+  document.getElementById('ch-mode-ch').style.color      = mode === 'ch' ? '#fff'    : '#888';
+  document.getElementById('ch-mode-th').style.background = mode === 'th' ? '#378ADD' : '#f5f5f3';
+  document.getElementById('ch-mode-th').style.color      = mode === 'th' ? '#fff'    : '#888';
+  document.getElementById('ch-label').textContent = mode === 'th' ? 'Total Hardness (TH)' : 'Calcium Hardness (CH)';
+  document.getElementById('ch').placeholder = mode === 'th' ? '350' : '300';
+  updateAll();
+}
+
+function effectiveCH(raw) {
+  if (raw === null) return null;
+  return chMode === 'th' ? Math.round(raw * 0.85) : raw;
 }
 
 function setUnit(u) {
@@ -37,14 +54,17 @@ function badge(val, low, high) {
 }
 
 function updateAll() {
-  const fc = v('fc'), cc = v('cc'), ph = v('ph'), ta = v('ta'), ch = v('ch');
+  const fc = v('fc'), cc = v('cc'), ph = v('ph'), ta = v('ta');
   const salt = v('salt'), cya = v('cya'), temp = v('temp');
+
+  const ch = effectiveCH(v('ch'));
 
   document.getElementById('fc-status').innerHTML = badge(fc, 2, 4);
   document.getElementById('cc-status').innerHTML = badge(cc, 0, 0.5);
   document.getElementById('ph-status').innerHTML = badge(ph, 7.2, 7.6);
   document.getElementById('ta-status').innerHTML = badge(ta, 80, 120);
-  document.getElementById('ch-status').innerHTML = badge(ch, 200, 400);
+  document.getElementById('ch-status').innerHTML = badge(ch, 200, 400) +
+    (chMode === 'th' && ch !== null ? `<span style="font-size:12px;color:#888;display:block;margin-top:3px;">Est. CH: ${ch} ppm</span>` : '');
   document.getElementById('salt-status').innerHTML = badge(salt, 2700, 3400);
   document.getElementById('cya-status').innerHTML = badge(cya, 60, 80);
   document.getElementById('temp-status').innerHTML = temp !== null ? `<span style="font-size:13px;color:#888;">${temp}&deg;F</span>` : '';
@@ -211,7 +231,7 @@ function logReading() {
     date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' ' + new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
     ts: Date.now(),
     fc: v('fc'), cc: v('cc'), ph: v('ph'), ta: v('ta'),
-    ch: v('ch'), salt: v('salt'), cya: v('cya'), temp: v('temp')
+    ch: effectiveCH(v('ch')), salt: v('salt'), cya: v('cya'), temp: v('temp')
   };
   const hasData = [entry.fc, entry.cc, entry.ph, entry.ta, entry.ch, entry.salt, entry.cya, entry.temp].some(x => x !== null);
   if (!hasData) { alert('Please enter at least one reading before logging.'); return; }
