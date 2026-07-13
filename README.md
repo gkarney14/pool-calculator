@@ -21,7 +21,7 @@ A standalone browser-based chemistry calculator for saltwater pools with SWG (sa
 | Free Chlorine | 2–4 ppm |
 | Combined Chlorine | < 0.5 ppm |
 | pH | 7.2–7.6 |
-| Total Alkalinity | 80–120 ppm |
+| Total Alkalinity | 60–80 ppm |
 | Calcium Hardness | 200–400 ppm |
 | Salt | 2700–3400 ppm |
 | Cyanuric Acid (CYA) | 60–80 ppm |

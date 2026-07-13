@@ -62,7 +62,7 @@ function updateAll() {
   document.getElementById('fc-status').innerHTML = badge(fc, 2, 4);
   document.getElementById('cc-status').innerHTML = badge(cc, 0, 0.5);
   document.getElementById('ph-status').innerHTML = badge(ph, 7.2, 7.6);
-  document.getElementById('ta-status').innerHTML = badge(ta, 80, 120);
+  document.getElementById('ta-status').innerHTML = badge(ta, 60, 80);
   document.getElementById('ch-status').innerHTML = badge(ch, 200, 400) +
     (chMode === 'th' && ch !== null ? `<span style="font-size:12px;color:#888;display:block;margin-top:3px;">Est. CH: ${ch} ppm</span>` : '');
   document.getElementById('salt-status').innerHTML = badge(salt, 2700, 3400);
@@ -169,16 +169,16 @@ function updateDosing(fc, cc, ph, ta, ch, salt, cya, temp) {
   }
 
   if (ta !== null) {
-    if (ta < 80) {
-      const lbs = ((80 - ta) * GALLONS * 0.000015).toFixed(1);
-      items.push({ name: 'Add baking soda (TA+)', amount: `${lbs} lbs`, note: `Raise TA ${ta} → 80 ${u}. Add in increments, retest each time.`, reading: ta, readingUnit: u, param: 'TA', cls: 'dose-warn' });
-    } else if (ta > 120) {
+    if (ta < 60) {
+      const lbs = ((70 - ta) * GALLONS * 0.000015).toFixed(1);
+      items.push({ name: 'Add baking soda (TA+)', amount: `${lbs} lbs`, note: `Raise TA ${ta} → 70 ${u}. Add in increments, retest each time.`, reading: ta, readingUnit: u, param: 'TA', cls: 'dose-warn' });
+    } else if (ta > 80) {
       const ACID_WT2 = { 14.5: 1.07, 31.45: 1.16, 34: 1.168 };
       const dr2 = (0.3145 * 1.16) / ((concs.acid / 100) * (ACID_WT2[concs.acid] || 1.12));
-      const oz = ((ta - 100) * GALLONS * 0.0001 * dr2).toFixed(1);
-      items.push({ name: `Muriatic acid ${concs.acid}% (lower TA)`, amount: `${oz} fl oz (${(oz / 128).toFixed(2)} gal)`, note: `Lower TA ${ta} → 100 ${u}. Add in 2–3 doses with aeration between each to degas CO₂.`, reading: ta, readingUnit: u, param: 'TA', cls: 'dose-warn' });
+      const oz = ((ta - 70) * GALLONS * 0.0001 * dr2).toFixed(1);
+      items.push({ name: `Muriatic acid ${concs.acid}% (lower TA)`, amount: `${oz} fl oz (${(oz / 128).toFixed(2)} gal)`, note: `Lower TA ${ta} → 70 ${u}. Add in 2–3 doses with aeration between each to degas CO₂.`, reading: ta, readingUnit: u, param: 'TA', cls: 'dose-warn' });
     } else {
-      items.push({ name: 'Total Alkalinity', amount: 'No action needed', note: `Target 80–120 ${u}`, reading: ta, readingUnit: u, param: 'TA', cls: 'dose-ok' });
+      items.push({ name: 'Total Alkalinity', amount: 'No action needed', note: `Target 60–80 ${u}`, reading: ta, readingUnit: u, param: 'TA', cls: 'dose-ok' });
     }
   }
 
@@ -430,7 +430,7 @@ function clearHistory() {
 const TREND_PARAMS = {
   fc:   { label: 'Free Chlorine', unit: 'ppm', color: '#378ADD', target: [2, 4] },
   ph:   { label: 'pH',            unit: '',    color: '#1D9E75', target: [7.2, 7.6] },
-  ta:   { label: 'Alkalinity',    unit: 'ppm', color: '#D85A30', target: [80, 120] },
+  ta:   { label: 'Alkalinity',    unit: 'ppm', color: '#D85A30', target: [60, 80] },
   ch:   { label: 'Ca Hardness',   unit: 'ppm', color: '#BA7517', target: [200, 400] },
   salt: { label: 'Salt',          unit: 'ppm', color: '#7F77DD', target: [2700, 3400] },
   cya:  { label: 'CYA',           unit: 'ppm', color: '#D4537E', target: [60, 80] },
