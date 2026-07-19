@@ -302,7 +302,7 @@ async function folderSave() {
   try {
     const fh = await dirHandle.getFileHandle(DATA_FILE, { create: true });
     const w = await fh.createWritable();
-    await w.write(JSON.stringify(history, null, 2));
+    await w.write(JSON.stringify({ history, poolName, poolGallons }, null, 2));
     await w.close();
   } catch (e) { console.warn('Folder save failed:', e); }
 }
@@ -313,12 +313,27 @@ async function folderLoad() {
     const fh = await dirHandle.getFileHandle(DATA_FILE);
     const file = await fh.getFile();
     const data = JSON.parse(await file.text());
-    if (Array.isArray(data)) {
-      history = data;
-      localStorage.setItem('poolHistory_19800', JSON.stringify(history));
-      if (history.length > 0)
-        document.getElementById('last-logged').textContent = 'Last logged: ' + history[0].date;
-      renderHistory();
+    // Support old format (plain array) and new format ({ history, poolName, poolGallons })
+    const rows = Array.isArray(data) ? data : (data.history || []);
+    history = rows;
+    localStorage.setItem('poolHistory_19800', JSON.stringify(history));
+    if (history.length > 0)
+      document.getElementById('last-logged').textContent = 'Last logged: ' + history[0].date;
+    renderHistory();
+    if (!Array.isArray(data)) {
+      if (data.poolName !== undefined) {
+        poolName = data.poolName;
+        localStorage.setItem('poolName_salt', poolName);
+        const nameEl = document.getElementById('pool-name');
+        if (nameEl) nameEl.value = poolName;
+      }
+      if (data.poolGallons !== undefined) {
+        poolGallons = data.poolGallons;
+        localStorage.setItem('poolGallons_salt', poolGallons);
+        const volEl = document.getElementById('pool-vol');
+        if (volEl) volEl.value = poolGallons;
+      }
+      updatePoolMeta();
     }
   } catch (e) { if (e.name !== 'NotFoundError') console.warn('Folder load failed:', e); }
 }
@@ -624,6 +639,7 @@ function initPoolSettings() {
       poolName = nameEl.value;
       localStorage.setItem('poolName_salt', poolName);
       updatePoolMeta();
+      folderSave();
     });
   }
   if (volEl) {
@@ -635,6 +651,7 @@ function initPoolSettings() {
         localStorage.setItem('poolGallons_salt', poolGallons);
         updatePoolMeta();
         updateAll();
+        folderSave();
       }
     });
   }
