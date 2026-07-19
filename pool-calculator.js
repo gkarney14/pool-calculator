@@ -1,4 +1,5 @@
-const GALLONS = 19800;
+let poolGallons = parseFloat(localStorage.getItem('poolGallons_salt') || '19800');
+let poolName = localStorage.getItem('poolName_salt') || '';
 let concs = { bleach: 10, shock: 65, acid: 14.5 };
 let history = JSON.parse(localStorage.getItem('poolHistory_19800') || '[]');
 let lastDosing = JSON.parse(localStorage.getItem('poolLastDosing_19800') || 'null');
@@ -93,7 +94,7 @@ function calcLSI(ph, ta, ch, temp) {
 }
 
 function bleachOz(ppmNeeded) {
-  return (ppmNeeded * GALLONS * 0.000128) / (concs.bleach / 100);
+  return (ppmNeeded * poolGallons * 0.000128) / (concs.bleach / 100);
 }
 
 function renderDosingItems(items, heldDate) {
@@ -157,11 +158,11 @@ function updateDosing(fc, cc, ph, ta, ch, salt, cya, temp) {
       const taForCalc = ta || 100;
       const ACID_WT = { 14.5: 1.07, 31.45: 1.16, 34: 1.168 };
       const densityRatio = (0.3145 * 1.16) / ((concs.acid / 100) * (ACID_WT[concs.acid] || 1.12));
-      const oz = ((ph - 7.4) * GALLONS * (taForCalc / 100) * 0.004 * densityRatio).toFixed(1);
+      const oz = ((ph - 7.4) * poolGallons * (taForCalc / 100) * 0.004 * densityRatio).toFixed(1);
       const taNote = ta === null ? ' (TA defaulted to 100 — enter TA reading for accuracy)' : '';
       items.push({ name: `Muriatic acid (${concs.acid}%)`, amount: `${oz} fl oz (${(oz / 128).toFixed(2)} gal)`, note: `Lower pH ${ph} → 7.4. TA ${taForCalc} ${u}.${taNote} Retest after 30 min — SWG aeration causes pH to rebound; multiple doses may be needed.`, reading: ph, readingUnit: '', param: 'pH', cls: 'dose-warn' });
     } else if (ph < 7.2) {
-      const lbs = ((7.4 - ph) * GALLONS * 0.000219).toFixed(2);
+      const lbs = ((7.4 - ph) * poolGallons * 0.000219).toFixed(2);
       items.push({ name: 'Add soda ash (pH+)', amount: `${lbs} lbs`, note: `Raise pH ${ph} → 7.4. Add in front of a return jet with pump running.`, reading: ph, readingUnit: '', param: 'pH', cls: 'dose-warn' });
     } else {
       items.push({ name: 'pH', amount: 'No action needed', note: 'Target 7.2–7.6', reading: ph, readingUnit: '', param: 'pH', cls: 'dose-ok' });
@@ -170,12 +171,12 @@ function updateDosing(fc, cc, ph, ta, ch, salt, cya, temp) {
 
   if (ta !== null) {
     if (ta < 60) {
-      const lbs = ((70 - ta) * GALLONS * 0.000015).toFixed(1);
+      const lbs = ((70 - ta) * poolGallons * 0.000015).toFixed(1);
       items.push({ name: 'Add baking soda (TA+)', amount: `${lbs} lbs`, note: `Raise TA ${ta} → 70 ${u}. Add in increments, retest each time.`, reading: ta, readingUnit: u, param: 'TA', cls: 'dose-warn' });
     } else if (ta > 80) {
       const ACID_WT2 = { 14.5: 1.07, 31.45: 1.16, 34: 1.168 };
       const dr2 = (0.3145 * 1.16) / ((concs.acid / 100) * (ACID_WT2[concs.acid] || 1.12));
-      const oz = ((ta - 70) * GALLONS * 0.0001 * dr2).toFixed(1);
+      const oz = ((ta - 70) * poolGallons * 0.0001 * dr2).toFixed(1);
       items.push({ name: `Muriatic acid ${concs.acid}% (lower TA)`, amount: `${oz} fl oz (${(oz / 128).toFixed(2)} gal)`, note: `Lower TA ${ta} → 70 ${u}. Add in 2–3 doses with aeration between each to degas CO₂.`, reading: ta, readingUnit: u, param: 'TA', cls: 'dose-warn' });
     } else {
       items.push({ name: 'Total Alkalinity', amount: 'No action needed', note: `Target 60–80 ${u}`, reading: ta, readingUnit: u, param: 'TA', cls: 'dose-ok' });
@@ -184,7 +185,7 @@ function updateDosing(fc, cc, ph, ta, ch, salt, cya, temp) {
 
   if (ch !== null) {
     if (ch < 200) {
-      const lbs = ((200 - ch) * GALLONS * 0.00002).toFixed(1);
+      const lbs = ((200 - ch) * poolGallons * 0.00002).toFixed(1);
       items.push({ name: 'Add calcium chloride (CH+)', amount: `${lbs} lbs`, note: `Raise CH ${ch} → 200 ${u}. Dissolve in a bucket of water first, add slowly.`, reading: ch, readingUnit: u, param: 'CH', cls: 'dose-warn' });
     } else if (ch > 400) {
       items.push({ name: 'Calcium Hardness — high', amount: 'Partial drain/refill', note: `Above 400 ${u}. Replace 20–30% water with fresh.`, reading: ch, readingUnit: u, param: 'CH', cls: 'dose-warn' });
@@ -195,7 +196,7 @@ function updateDosing(fc, cc, ph, ta, ch, salt, cya, temp) {
 
   if (salt !== null) {
     if (salt < 2700) {
-      const lbs = Math.round((3200 - salt) * GALLONS / 1000000 * 8.34);
+      const lbs = Math.round((3200 - salt) * poolGallons / 1000000 * 8.34);
       items.push({ name: 'Add pool salt', amount: `${lbs} lbs`, note: `Raise salt ${salt} → 3200 ${u}. Non-iodized pool salt. Run pump 24h before retesting.`, reading: salt, readingUnit: u, param: 'Salt', cls: 'dose-warn' });
     } else if (salt > 3500) {
       items.push({ name: 'Salt — high', amount: 'Partial drain/refill', note: `Above 3500 ${u}. Drain and refill some water to dilute.`, reading: salt, readingUnit: u, param: 'Salt', cls: 'dose-warn' });
@@ -206,7 +207,7 @@ function updateDosing(fc, cc, ph, ta, ch, salt, cya, temp) {
 
   if (cya !== null) {
     if (cya < 60) {
-      const lbs = ((70 - cya) * GALLONS / 1000000 * 8.34).toFixed(2);
+      const lbs = ((70 - cya) * poolGallons / 1000000 * 8.34).toFixed(2);
       const oz = (lbs * 16).toFixed(0);
       items.push({ name: 'Add stabilizer / CYA', amount: `${lbs} lbs (${oz} oz)`, note: `Raise CYA ${cya} → 70 ${u}. Dissolve in warm water first. Takes 1–2 weeks to register.`, reading: cya, readingUnit: u, param: 'CYA', cls: 'dose-warn' });
     } else if (cya > 90) {
@@ -596,6 +597,50 @@ function renderHistory() {
   });
 }
 
+function updatePoolMeta() {
+  const nameEl = document.getElementById('pool-name');
+  const volEl  = document.getElementById('pool-vol');
+  const subtitleEl = document.getElementById('pool-subtitle');
+  if (nameEl && nameEl.value.trim()) {
+    document.title = nameEl.value.trim() + ' — Salt Pool Chemistry';
+  } else {
+    document.title = 'Salt Pool Chemistry Calculator';
+  }
+  if (subtitleEl) {
+    subtitleEl.textContent = (poolGallons ? poolGallons.toLocaleString() : '—') + ' gal — SWG system';
+  }
+  const dosingSubtitle = document.getElementById('dosing-subtitle');
+  if (dosingSubtitle) {
+    dosingSubtitle.textContent = (poolGallons ? poolGallons.toLocaleString() : '—') + ' gal';
+  }
+}
+
+function initPoolSettings() {
+  const nameEl = document.getElementById('pool-name');
+  const volEl  = document.getElementById('pool-vol');
+  if (nameEl) {
+    nameEl.value = poolName;
+    nameEl.addEventListener('input', () => {
+      poolName = nameEl.value;
+      localStorage.setItem('poolName_salt', poolName);
+      updatePoolMeta();
+    });
+  }
+  if (volEl) {
+    volEl.value = poolGallons || '';
+    volEl.addEventListener('input', () => {
+      const parsed = parseFloat(volEl.value);
+      if (parsed > 0) {
+        poolGallons = parsed;
+        localStorage.setItem('poolGallons_salt', poolGallons);
+        updatePoolMeta();
+        updateAll();
+      }
+    });
+  }
+  updatePoolMeta();
+}
+
 function switchTab(name, btn) {
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -653,5 +698,6 @@ document.addEventListener('DOMContentLoaded', () => {
     renderDosingItems(lastDosing.items, lastDosing.date);
   }
 
+  initPoolSettings();
   initFolder();
 });

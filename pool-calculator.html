@@ -91,9 +91,16 @@
     <div class="header-icon">
       <i class="ti ti-droplet" style="font-size: 24px; color: #185FA5;" aria-hidden="true"></i>
     </div>
-    <div>
-      <h1 style="font-size: 20px; font-weight: 500;">Salt Pool Chemistry</h1>
-      <p style="font-size: 13px; color: #888;">19,800 gallon &mdash; SWG system</p>
+    <div style="flex:1;min-width:0;">
+      <input type="text" id="pool-name" placeholder="My Salt Pool" maxlength="60"
+        style="font-size:19px;font-weight:500;border:none;background:transparent;outline:none;width:100%;color:inherit;padding:0;display:block;margin-bottom:2px;"
+        aria-label="Pool name">
+      <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
+        <input type="number" id="pool-vol" placeholder="19800" min="100" max="9999999" step="100"
+          style="font-size:13px;color:#888;border:none;background:transparent;outline:none;width:72px;padding:0;"
+          aria-label="Pool volume in gallons">
+        <span id="pool-subtitle" style="font-size:13px;color:#888;">19,800 gal &mdash; SWG system</span>
+      </div>
     </div>
     <div style="margin-left: auto; text-align: right;">
       <p style="font-size: 12px; color: #888;" id="last-logged">No readings logged</p>
@@ -195,7 +202,7 @@
 
   <!-- DOSING TAB -->
   <div id="tab-dosing" class="tab-panel">
-    <p class="section-title">Chemical adjustments &mdash; 19,800 gal</p>
+    <p class="section-title">Chemical adjustments &mdash; <span id="dosing-subtitle">19,800 gal</span></p>
     <div id="dosing-list">
       <p style="font-size:14px;color:#888;">Enter readings on the Readings tab to see dosing recommendations.</p>
     </div>
